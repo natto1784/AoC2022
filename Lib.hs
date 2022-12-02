@@ -1,9 +1,4 @@
-module Lib (calories) where
-
-calories :: String -> [Integer]
-calories input =
-  map (sum . map read) $
-    filter (not . null) $ split "" $ split '\n' input
+module Lib (split) where
 
 split :: Eq a => a -> [a] -> [[a]]
 split del =
