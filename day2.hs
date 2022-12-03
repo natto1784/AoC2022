@@ -1,5 +1,3 @@
-import Lib (split)
-
 -- we do not use a simple 9 value case cuz yeah
 
 main :: IO ()
