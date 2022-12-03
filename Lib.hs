@@ -1,4 +1,10 @@
-module Lib (split) where
+module Lib (chunks, split) where
+
+chunks :: Int -> [a] -> [[a]]
+chunks n xs
+  | null xs = []
+  | otherwise = head : chunks n tail
+  where (head, tail) = splitAt n xs
 
 split :: Eq a => a -> [a] -> [[a]]
 split del =
