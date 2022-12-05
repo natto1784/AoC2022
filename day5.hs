@@ -1,20 +1,22 @@
-import Lib (split)
+import Data.Char (isDigit)
+import Data.List (transpose)
+import Data.Maybe (catMaybes)
+import Text.ParserCombinators.ReadP
 
 main :: IO ()
 main = do
-  input <- readFile "day5.in"
-  let [crates, cmds] = split "" $ lines input
-  let cratesList = init $ parseCrates $ init crates
-  let cmdsList = parseCmds cmds
+  input <- lines <$> readFile "day5.in"
+  let (crates, cmds) = break null input
+  let cratesList = map catMaybes $ transpose $ map (fst . last . readP_to_S parseCrates) $ init crates
+  let cmdsList = map ((\(n, a, b) -> (n, a - 1, b - 1)) . fst . last . readP_to_S parseCmd) $ tail cmds
+  print cratesList
   putStr "Q1: "
   print $ q1 cratesList cmdsList
   putStr "Q2: "
   print $ q2 cratesList cmdsList
 
-q1 :: [[Char]] -> [(Int, Int, Int)] -> [Char]
+q1, q2 :: [[Char]] -> [(Int, Int, Int)] -> [Char]
 q1 crates cmds = map head $ foldl (\x xs -> moveCrates x xs True) crates cmds
-
-q2 :: [[Char]] -> [(Int, Int, Int)] -> [Char]
 q2 crates cmds = map head $ foldl (\x xs -> moveCrates x xs False) crates cmds
 
 -- Computers are fast, really, not optimising right now
@@ -26,12 +28,17 @@ moveCrates crates (n, a, b) rev =
     replace :: Int -> [a] -> a -> [a]
     replace i xs x = take i xs ++ [x] ++ drop (i + 1) xs
 
-parseCrates :: [[Char]] -> [[Char]]
-parseCrates ([] : _) = [[]]
-parseCrates crates = parseCrate crates : parseCrates (map (drop 4) crates)
+parseCrates :: ReadP [Maybe Char]
+parseCrates = sepBy parseRow (char ' ')
   where
-    parseCrate :: [[Char]] -> [Char]
-    parseCrate = foldr (\(_ : x : _ : _) xs -> if x /= ' ' then x : xs else xs) []
+    parseRow :: ReadP (Maybe Char)
+    parseRow = (Just <$> (char '[' *> get <* char ']')) +++ (Nothing <$ string "   ")
 
-parseCmds :: [[Char]] -> [(Int, Int, Int)]
-parseCmds = foldr (\x xs -> let y = split ' ' x in (read $ y !! 1, read (y !! 3) - 1, read (y !! 5) - 1) : xs) []
+parseCmd :: ReadP (Int, Int, Int)
+parseCmd =
+  (,,) <$> (string "move " *> getInt)
+    <*> (string " from " *> getInt)
+    <*> (string " to " *> getInt)
+  where
+    getInt :: ReadP Int
+    getInt = read <$> many1 (satisfy isDigit)
