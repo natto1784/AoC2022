@@ -13,18 +13,18 @@
           pkgs = import nixpkgs {
             inherit system;
           };
+          src = ./.;
         in
-        {
-          devShells = with pkgs; rec {
-            default = mkShell {
-              buildInputs = [ ghc ];
-            };
-            withLsp = mkShell {
-              buildInputs = [
-                ghc
-                haskell-language-server
-              ];
-            };
+        with pkgs; {
+          devShells.default = mkShell {
+            buildInputs = [
+              ghc
+              haskell-language-server
+            ];
+          };
+          apps.default = {
+            type = "app";
+            program = "${ghc}/bin/runhaskell";
           };
         }
       );
