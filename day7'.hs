@@ -2,7 +2,7 @@ import Data.Tree
 
 main :: IO ()
 main = do
-  tree <- flip parse (emptyFs "/") . map words . lines <$> readFile "day7.in"
+  tree <- snd . flip parse (emptyFs "/") . map words . lines <$> readFile "day7.in"
   putStr "Q1: "
   print $
     foldTree
@@ -22,36 +22,35 @@ main = do
       )
       tree
 
+type Filesystem = Tree (String, Int)
+
 tail' :: [a] -> [a]
 tail' = drop 1
 
-emptyFs :: String -> Tree (String, Int)
+emptyFs :: String -> Filesystem
 emptyFs n = Node (n, 0) []
 
-insertFs :: Tree (String, Int) -> String -> Tree (String, Int) -> Tree (String, Int)
-insertFs (Node n xs) name dir = Node (fst n, snd n + snd (rootLabel dir)) (dir : xs)
+insertFs :: Filesystem -> String -> Filesystem -> Filesystem
+insertFs (Node n xs) name fs = Node (fst n, snd n + snd (rootLabel fs)) (fs : xs)
 
-totalSize :: [Tree (String, Int)] -> Int
+totalSize :: [Filesystem] -> Int
 totalSize = sum . map (snd . rootLabel)
 
-ls :: [[String]] -> [Tree (String, Int)]
+ls :: [[String]] -> [Filesystem]
 ls = map (\[a, b] -> Node (b, read a) []) . filter ((/= "dir") . head)
 
-parse :: [[String]] -> Tree (String, Int) -> Tree (String, Int)
-parse input fs = snd $ parse' input fs
-
-parse' :: [[String]] -> Tree (String, Int) -> ([[String]], Tree (String, Int))
-parse' input fs
-  | null input || cur !! 1 == "cd" && cur !! 2 == ".." = (tail' input, fs)
-  | cur !! 1 == "ls" =
+parse :: [[String]] -> Filesystem -> ([[String]], Filesystem)
+parse input fs
+  | null input || cur == ["$", "cd", ".."] = (tail' input, fs)
+  | cur == ["$", "ls"] =
     let (children, rest) = span ((/= "$") . head) (tail' input)
-        childFs = ls children
+        leaves = ls children
         name = fst $ rootLabel fs
-     in parse' rest (Node (name, totalSize childFs) childFs)
+     in parse rest (Node (name, totalSize leaves) leaves)
   | otherwise =
     let name = cur !! 2
-        (nextInput, newFs) = parse' (tail' input) (emptyFs name)
+        (nextInput, newFs) = parse (tail' input) (emptyFs name)
         replaced = insertFs fs name newFs -- replace empty directory
-     in parse' nextInput replaced
+     in parse nextInput replaced
   where
     cur = head input
