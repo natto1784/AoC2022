@@ -1,44 +1,44 @@
-import Data.Char (isDigit)
-import Data.List (transpose)
-import Data.Maybe (catMaybes)
-import Text.ParserCombinators.ReadP
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
+
+import Data.List (foldl')
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Text (Text)
+import qualified Data.Text as T
+import Lib (readFile')
 
 main :: IO ()
 main = do
-  input <- lines <$> readFile "day5.in"
-  let (crates, cmds) = break null input
-  let cratesList = map catMaybes $ transpose $ map (fst . last . readP_to_S parseCrates) $ init crates
-  let cmdsList = map ((\(n, a, b) -> (n, a - 1, b - 1)) . fst . last . readP_to_S parseCmd) $ tail cmds
-  print cratesList
+  input <- break (== T.empty) . T.lines <$> readFile' "day5.in"
+  let (crates, cmds) = parse input
   putStr "Q1: "
-  print $ q1 cratesList cmdsList
+  print $ moveCrates T.reverse crates cmds
   putStr "Q2: "
-  print $ q2 cratesList cmdsList
+  print $ moveCrates id crates cmds
 
-q1, q2 :: [[Char]] -> [(Int, Int, Int)] -> [Char]
-q1 crates cmds = map head $ foldl (\x xs -> moveCrates x xs True) crates cmds
-q2 crates cmds = map head $ foldl (\x xs -> moveCrates x xs False) crates cmds
-
--- Computers are fast, really, not optimising right now
-moveCrates :: [[Char]] -> (Int, Int, Int) -> Bool -> [[Char]]
-moveCrates crates (n, a, b) rev =
-  let (head, tail) = splitAt n $ crates !! a
-   in replace b (replace a crates tail) ((if rev then reverse head else head) ++ crates !! b)
+moveCrates :: (Text -> Text) -> [Text] -> [(Int, Int, Int)] -> Text
+moveCrates f crates' cmds = head . T.transpose . M.elems $ foldl' move crates cmds
   where
-    replace :: Int -> [a] -> a -> [a]
-    replace i xs x = take i xs ++ [x] ++ drop (i + 1) xs
+    crates :: Map Int Text
+    crates = M.fromList $ zip [0 ..] crates'
+    move :: Map Int Text -> (Int, Int, Int) -> Map Int Text
+    move c (n, x, y) =
+      let (h, t) = T.splitAt n $ c M.! x
+       in M.update (Just . (<>) (f h)) y $ M.insert x t c
 
-parseCrates :: ReadP [Maybe Char]
-parseCrates = sepBy parseRow (char ' ')
-  where
-    parseRow :: ReadP (Maybe Char)
-    parseRow = (Just <$> (char '[' *> get <* char ']')) +++ (Nothing <$ string "   ")
-
-parseCmd :: ReadP (Int, Int, Int)
-parseCmd =
-  (,,) <$> (string "move " *> getInt)
-    <*> (string " from " *> getInt)
-    <*> (string " to " *> getInt)
-  where
-    getInt :: ReadP Int
-    getInt = read <$> many1 (satisfy isDigit)
+-- ugly code vs line length <= 90 🤔
+parse :: ([Text], [Text]) -> ([Text], [(Int, Int, Int)])
+parse (crates, cmds) =
+  ( [ T.filter (/= ' ') x
+      | (i, x) <- zip [0 ..] (T.transpose $ init crates),
+        i `mod` 4 == 1
+    ],
+    map
+      ( ( \["move", T.unpack -> n, "from", T.unpack -> x, "to", T.unpack -> y] ->
+            (read n, read x - 1, read y - 1)
+        )
+          . T.words
+      )
+      $ tail cmds
+  )
