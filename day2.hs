@@ -1,8 +1,12 @@
+import Data.Text (Text)
+import qualified Data.Text as T (lines, unpack)
+import Lib (readFile')
+
 -- we do not use a simple 9 value case cuz yeah
 
 main :: IO ()
 main = do
-  choices <- parse <$> readFile "day2.in"
+  choices <- parse <$> readFile' "day2.in"
   putStr "Q1: "
   print $ q1 choices
   putStr "Q2: "
@@ -17,8 +21,8 @@ instance Ord Choice where
   compare Scissors Rock = LT
   compare _ _ = GT
 
-parse :: String -> [(Choice, Choice)]
-parse = map (\[x, _, y] -> (val x 'A', val y 'X')) . lines
+parse :: Text -> [(Choice, Choice)]
+parse = map ((\[x, _, y] -> (val x 'A', val y 'X')) . T.unpack) . T.lines
 
 score :: (Choice, Choice) -> Int
 score (i, j) = 1 + fromEnum j + 3 * fromEnum (compare j i)
