@@ -1,8 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+import Data.Either (rights)
+import Data.Text (Text)
+import qualified Data.Text as T (head, lines, words)
+import qualified Data.Text.Read as T (decimal)
 import Data.Tree
+import Lib (readFile')
 
 main :: IO ()
 main = do
-  tree <- snd . flip parse (emptyFs "/") . map words . lines <$> readFile "day7.in"
+  tree <- snd . flip parse (emptyFs "/") . map T.words . T.lines <$> readFile' "day7.in"
   putStr "Q1: "
   print $
     foldTree
@@ -22,24 +29,26 @@ main = do
       )
       tree
 
-type Filesystem = Tree (String, Int)
+type Filesystem = Tree (Text, Int)
 
 tail' :: [a] -> [a]
 tail' = drop 1
 
-emptyFs :: String -> Filesystem
+emptyFs :: Text -> Filesystem
 emptyFs n = Node (n, 0) []
 
-insertFs :: Filesystem -> String -> Filesystem -> Filesystem
+insertFs :: Filesystem -> Text -> Filesystem -> Filesystem
 insertFs (Node n xs) name fs = Node (fst n, snd n + snd (rootLabel fs)) (fs : xs)
+
+ls :: [[Text]] -> [Filesystem]
+ls =
+  map (\[a, b] -> Node (b, fst . head $ rights [T.decimal a]) [])
+    . filter ((/= "dir") . head)
 
 totalSize :: [Filesystem] -> Int
 totalSize = sum . map (snd . rootLabel)
 
-ls :: [[String]] -> [Filesystem]
-ls = map (\[a, b] -> Node (b, read a) []) . filter ((/= "dir") . head)
-
-parse :: [[String]] -> Filesystem -> ([[String]], Filesystem)
+parse :: [[Text]] -> Filesystem -> ([[Text]], Filesystem)
 parse input fs
   | null input || cur == ["$", "cd", ".."] = (tail' input, fs)
   | cur == ["$", "ls"] =
@@ -50,7 +59,7 @@ parse input fs
   | otherwise =
     let name = cur !! 2
         (nextInput, newFs) = parse (tail' input) (emptyFs name)
-        replaced = insertFs fs name newFs -- replace empty directory
+        replaced = insertFs fs name newFs
      in parse nextInput replaced
   where
     cur = head input
