@@ -1,22 +1,21 @@
+import Data.Either (isLeft, rights)
 import Data.List (sortOn)
 import Data.Ord (Down (Down))
+import Data.Text (Text)
+import qualified Data.Text as T (lines)
+import qualified Data.Text.Read as T (decimal)
+import Lib (readFile')
 
 main :: IO ()
 main = do
-  input <- lines <$> readFile "day1.in"
+  input <- map T.decimal . T.lines <$> readFile' "day1.in"
   putStr "Q1: "
-  print $ q1 input
+  print . maximum $ calories input
   putStr "Q2: "
-  print $ q2 input
+  print . sum . take 3 . sortOn Down $ calories input
 
-q1 :: [String] -> Int
-q1 = maximum . calories
-
-q2 :: [String] -> Int
-q2 = sum . take 3 . sortOn Down . calories
-
-calories :: [String] -> [Int]
+calories :: [Either String (Int, Text)] -> [Int]
 calories [] = []
 calories input =
-  let (cur, rest) = break null input
-   in sum (map read cur) : calories (drop 1 rest)
+  let (cur, rest) = break isLeft input
+   in sum (map fst $ rights cur) : calories (drop 1 rest)
