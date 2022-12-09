@@ -1,33 +1,28 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 import Data.Char (isDigit)
-import Text.ParserCombinators.ReadP
-  ( ReadP,
-    char,
-    many1,
-    readP_to_S,
-    satisfy,
-  )
+import Data.Either (rights)
+import Data.Maybe (fromJust)
+import Data.Text (Text)
+import qualified Data.Text as T (lines, stripPrefix)
+import qualified Data.Text.Read as T (decimal)
+import Lib (readFile')
 
 main :: IO ()
 main = do
-  input <- map (fst . last . readP_to_S parse) . lines <$> readFile "day4.in"
+  input <- rights . map parse . T.lines <$> readFile' "day4.in"
   putStr "Q1: "
   print $ q1 input
   putStr "Q2: "
   print $ q2 input
 
-parse :: ReadP ((Int, Int), (Int, Int))
-parse = do
-  a <- readInt
-  char '-'
-  b <- readInt
-  char ','
-  c <- readInt
-  char '-'
-  d <- readInt
+parse :: Text -> Either String ((Int, Int), (Int, Int))
+parse rest = do
+  (a, rest) <- T.decimal rest
+  (b, rest) <- T.decimal $ fromJust $ T.stripPrefix "-" rest
+  (c, rest) <- T.decimal $ fromJust $ T.stripPrefix "," rest
+  (d, rest) <- T.decimal $ fromJust $ T.stripPrefix "-" rest
   return ((a, b), (c, d))
-  where
-    readInt :: ReadP Int
-    readInt = read <$> many1 (satisfy isDigit)
 
 q1, q2 :: [((Int, Int), (Int, Int))] -> Int
 q1 = length . filter (\((a, b), (c, d)) -> a >= c && b <= d || c >= a && d <= b)
