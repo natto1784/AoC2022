@@ -1,1 +1,1 @@
-My advent of code solutions for 2022. I am trying to not use String wherever possible and use Data.Text instead. That makes the programs appear bigger than they are LOC-wise.
+My advent of code solutions for 2022. I am trying to not use String ([Char]) wherever possible and use Data.Text instead. That makes the programs appear bigger than they are LOC-wise.
