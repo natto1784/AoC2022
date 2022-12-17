@@ -2,13 +2,11 @@
 {-# LANGUAGE ViewPatterns #-}
 
 import Data.List (nub, sort)
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as T (lines, null, split)
 import qualified Data.Text.Read as T (decimal, signed)
 import Lib (readFile')
-
--- broh this is so slow ~ 20s, -O2 is less than 2s though???????
--- will optimize this later, along with last 10 days *sigh*
 
 main :: IO ()
 main = do
@@ -16,11 +14,11 @@ main = do
   putStr "Q1: "
   print $ q1 input 2000000
   putStr "Q2: "
-  print $ q2 input input 0 4000000
+  print $ q2 input 0 4000000
 
-type Entity = (Int, Int, Int, Int, Int)
+type Coords = (Int, Int, Int, Int, Int)
 
-q1 :: [Entity] -> Int -> Int
+q1 :: [Coords] -> Int -> Int
 q1 input n = mergeRanges getRanges
   where
     mergeRanges :: [(Int, Int)] -> Int
@@ -42,29 +40,60 @@ q1 input n = mergeRanges getRanges
           []
           input
 
-q2 :: [Entity] -> [Entity] -> Int -> Int -> Int
-q2 input@((x, y, succ -> e, a, b) : xs) all mn mx =
-  let (x', y') = dirs [(-1, -1), (1, -1), (1, 1), (-1, 1)]
-   in if (x', y') == (mn - 1, mn - 1) then q2 xs all mn mx else x' * mx + y'
+type Segment = (Int, Int, Int, Int)
+
+q2 input mn mx =
+  head
+    [ a * mx + b
+      | (a, b) <- diag1234,
+        a >= mn && b >= mn && a <= mx && b <= mx,
+        and [abs (b - y) + abs (a - x) > r | (x, y, r, _, _) <- input]
+    ]
   where
-    dirs :: [(Int, Int)] -> (Int, Int)
-    dirs [] = (mn - 1, mn - 1)
-    dirs ((dx, dy) : ds) =
-      let b = border (dx, dy) (if dx * dy > 0 then [0 .. e - 1] else [e, e - 1 .. 1])
-       in if b == (mn - 1, mn - 1) then dirs ds else b
+    diag1, diag2, diag3, diag4 :: Coords -> Segment
+    diag1 (x, y, r, _, _) = (x - r - 1, y, x, y - r - 1)
+    diag2 (x, y, r, _, _) = (x, y - r - 1, x + r + 1, y)
+    diag3 (x, y, r, _, _) = (x, y + r + 1, x + r + 1, y)
+    diag4 (x, y, r, _, _) = (x - r - 1, y, x, y + r + 1)
 
-    border :: (Int, Int) -> [Int] -> (Int, Int)
-    border _ [] = (mn - 1, mn - 1)
-    border (dx, dy) (b : bs) =
-      let (x', y') = (x + dx * b, y + dy * (e - b))
-       in if not (contains (x', y') all) && x' >= mn && x' <= mx && y' >= mn && y' <= mx
-            then (x', y')
-            else border (dx, dy) bs
+    diagInt :: Segment -> Segment -> Maybe Segment
+    diagInt a@(x0, y0, x1, y1) b@(x2, y2, x3, y3)
+      | x3 < x0 || x1 < x2 = Nothing
+      | x0 >= x2 && x1 <= x3 = Just a
+      | x2 >= x0 && x3 <= x1 = Just b
+      | x3 >= x1 = Just (x2, y2, x1, y1)
+      | x1 >= x3 = Just (x0, y0, x3, y3)
 
-    contains :: (Int, Int) -> [Entity] -> Bool
-    contains (a', b') = any (\(x, y, r, a, b) -> r >= abs (b' - y) + abs (a' - x))
+    diag13, diag24 :: [Segment]
+    diag13 =
+      catMaybes
+        [ diagInt i j
+          | a <- input,
+            b <- input,
+            let i@(x0, y0, x1, y1) = diag1 a,
+            let j@(x2, y2, x3, y3) = diag3 b,
+            a /= b,
+            x0 + y0 == x2 + y2
+        ]
+    diag24 =
+      catMaybes
+        [ diagInt i j
+          | a <- input,
+            b <- input,
+            let i@(x0, y0, x1, y1) = diag2 a,
+            let j@(x2, y2, x3, y3) = diag4 b,
+            a /= b,
+            y0 - x0 == y2 - x2
+        ]
 
-parse :: Text -> Entity
+    diag1234 :: [(Int, Int)]
+    diag1234 =
+      [ let (c1, c2) = (y0 + x0, y2 - x2) in (div (c1 - c2) 2, div (c1 + c2) 2)
+        | (x0, y0, x1, y1) <- diag13,
+          (x2, y2, x3, y3) <- diag24
+      ]
+
+parse :: Text -> Coords
 parse =
   ( \[ "Sensor",
        "at",
